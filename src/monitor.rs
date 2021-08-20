@@ -1,69 +1,39 @@
-use error_chain::error_chain;
+use crate::errors::*;
 use std::io::Read;
+use sha2::{Sha256, Digest};
 
-error_chain! {
-    foreign_links {
-        Io(std::io::Error);
-        HttpRequest(reqwest::Error);
-    }
-}
-
-fn compare_snapshot() -> Result<()> {
+pub fn run() -> Result<()> {
     Ok(())
 }
 
-fn save_snapshot(data: &str) -> Result<()> {
-    use std::path::Path;
-    use std::fs::File;
-    use std::io::prelude::*;
-
-    let path = Path::new("snapshot.txt");
-    let display = path.display();
-
-    // open file in write only
-    let mut file = match File::create(&path) {
-        Err(why) => panic!("Could not write to {}: {}", display, why),
-        Ok(file) => file,
-    };
-
-    match file.write_all(data.as_bytes()) {
-        Err(why) => panic!("Could not write to {}: {}", display, why),
-        Ok(_) => println!("Successfuly wrote to {}", display),
-    }
+fn compare_snapshots(a: Vec<u8>, b: Vec<u8>) -> Result<()> {
+    Ok(())
 }
 
-fn load_snapshot() -> Result<()> {
-    use std::path::Path;
-    use std::fs::File;
-    use std::io::prelude::*;
+fn save_snapshot(data: Vec<u8>) -> Result<()> {
+    use std::fs;
 
-    let path = Path::new("snapshot.txt");
-    let display = path.display();
+    fs::write("snapshots.txt", data).chain_err(|| format!("Could not write to snapshots.txt"))?;
 
-    let mut file = match File::open(&path) {
-        Err(why) => panic!("Could not write to {}: {}", display, why),
-        Ok(file) => file,
-    };
-
-    match file.read_to_string(buf: &mut String)
-
+    Ok(())
 }
 
-pub fn take_snapshot(url: &str) -> Result<()> {
-    
+fn load_snapshot() -> Result<Vec<u8>> {
+    let mut body = std::fs::read("snapshots.txt").chain_err(|| "Invalid UTF-8 squence")?;
+    Ok(body)
+}
 
+pub fn take_snapshot(url: &str) -> Result<Vec<u8>> {
     
-
-    let mut res = reqwest::blocking::get(url)?;
+    let mut res = reqwest::blocking::get(url).chain_err(|| "Failed to get web page.")?;
     let mut body = String::new();
-    res.read_to_string(&mut body)?;
-    let mut prev_snapshot = load_snapshot();
+    res.read_to_string(&mut body).chain_err(|| "Failed to read page to string.")?; // read webpage to string
 
-    save_snapshot(&body);
+    let mut hasher = Sha256::new();
+    hasher.update(&body);
+    let result = hasher.finalize(); // hash the webpage
+    println!("Body: {}", &body);
+    println!("Hash: {:02X?}", result); // show the snapshot hex
 
-    // println!("Status: {}", res.status());
-    // println!("Headers\n{:#?}", res.headers());
-    // println!("Body:\n{}", body);
-
-    Ok(())
+    Ok(result[..].to_vec())
 }

@@ -11,7 +11,12 @@ mod errors {
     use error_chain::error_chain;
 
     // Create the Error, ErrorKind, ResultExt, and Result types
-    error_chain! {}
+    error_chain! {
+        foreign_links {
+            Io(std::io::Error);
+            HttpRequest(reqwest::Error);
+        }
+    }
 }
 
 // This only gives access within this module. Make this `pub use errors::*;`
@@ -22,7 +27,7 @@ pub use errors::*;
 mod monitor;
 
 fn main() {
-    if let Err(ref e) = monitor::start_monitor() {
+    if let Err(ref e) = monitor::take_snapshot("https://www.storror.com/parkour-store/shoes/") {
         use std::io::Write;
         let stderr = &mut ::std::io::stderr();
         let errmsg = "Error writing to stderr";
